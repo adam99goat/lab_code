@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Oct 18 20:53:47 2020
+Created on Fri Oct 30 10:17:41 2020
 
 @author: zhouying
 """
@@ -11,6 +11,7 @@ import os
 import tifffile as tfl
 
 train_path='/Users/zhouying/Desktop/train'
+gt_path='/Users/zhouying/Desktop/GT'
 # path1='/Users/zhouying/Desktop/Left_Image.png'
 # path2='/Users/zhouying/Desktop/Right_Image.png'
 savepath="/Users/zhouying/Desktop"
@@ -100,12 +101,9 @@ for e_num in e_nums:
         speckleWindowSize = 100
         speckleRange = 10
         
-        gt_original=tfl.imread(train_path+'/d'+str(e_num)+'/k'+str(k_num)+'/left_depth_map.tiff')
-        gt3=gt_original[:,:,2]
-        gt_rectified=cv.remap(gt3,left_map1,left_map2,cv.INTER_LINEAR)
-        gt_norm = cv.normalize(gt_rectified[0:,numDisparities:], gt_rectified[0:,numDisparities:],
-                                alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-        # cv.imwrite("/Users/zhouying/Desktop/gt_norm.png", gt_norm)
+        gt_original=tfl.imread(gt_path+'/d'+str(e_num)+'/k'+str(k_num)+'/left_depth_map.tiff')
+        gt3=gt_original
+        gt_rectified=gt3
 
         imgL = cv.cvtColor(I1_rectified, cv.COLOR_BGR2GRAY)
         imgR = cv.cvtColor(I2_rectified, cv.COLOR_BGR2GRAY)
@@ -127,18 +125,15 @@ for e_num in e_nums:
                                       mode = cv.StereoSGBM_MODE_HH)
         disparity = stereo.compute(imgL, imgR).astype(np.float32)/16
         
-        disparity[disparity <= 0] = np.nan
+        disparity[disparity < 0] = np.nan
         valid_px[e_num-1,k_num-1] = np.sum(disparity > 0)/(1024*1280)
         
         gt_dp = b * f / gt_rectified
-        gt_dp[gt_dp < 0] = np.nan
+        gt_dp[gt_dp <= 0] = np.nan
         gt_dp[gt_dp == np.inf] = np.nan
         gt_dp[gt_dp > numDisparities] = np.nan
         gt_rectified[gt_dp > numDisparities] = np.nan
         depth = b * f / disparity
-        
-        os.makedirs("/Users/zhouying/Desktop/gt_depth_rectify/d"+str(e_num)+'/k'+str(k_num))
-        cv.imwrite("/Users/zhouying/Desktop/gt_depth_rectify/d"+str(e_num)+'/k'+str(k_num)+'/left_depth_map.tiff', gt_rectified)
         
         SA_error=np.abs(depth[:,numDisparities:]-gt_rectified[:,numDisparities:])
         SAmask1 = np.isnan(SA_error)

@@ -53,9 +53,33 @@ imgR = cv.cvtColor(I2_rectified, cv.COLOR_BGR2GRAY)
 cv.imwrite("/Users/zhouying/Desktop/I1_rectified.png", I1_rectified)
 cv.imwrite("/Users/zhouying/Desktop/I2_rectified.png", I2_rectified)
 
-stereo = cv.StereoSGBM_create(minDisparity = 0, numDisparities = 16, 
-                              blockSize=5, P1 = 40,
-                              P2= 160)
-disparity = stereo.compute(imgL, imgR)
-cv.imwrite("/Users/zhouying/Desktop/disparity.png", disparity)
+minDisparity = 0
+numDisparities = 192
+SADWindowSize = 5
+# P1 = 8 * 3 * SADWindowSize * SADWindowSize
+P1 = 1
+# P2 = 32 * 3 * SADWindowSize * SADWindowSize
+P2 = 2
+disp12MaxDiff = 1
+preFilterCap = 0
+uniquenessRatio = 1
+speckleWindowSize = 200
+speckleRange = 1
 
+stereo = cv.StereoSGBM_create(minDisparity = minDisparity, 
+                              numDisparities = numDisparities, 
+                              blockSize = SADWindowSize, P1 = P1,
+                              P2 = P2, disp12MaxDiff = disp12MaxDiff, 
+                              preFilterCap = preFilterCap,
+                              uniquenessRatio = uniquenessRatio, 
+                              speckleWindowSize = speckleWindowSize, 
+                              speckleRange = speckleRange,
+                              mode = cv.StereoSGBM_MODE_SGBM)
+disparity = stereo.compute(imgL, imgR)
+cv.imwrite("/Users/zhouying/Desktop/disparity.tiff", disparity)
+disp = cv.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+cv.imwrite("/Users/zhouying/Desktop/disp.png", disp)
+
+# gt=cv.imread('/Users/zhouying/Desktop/left_depth_map.tiff',3)
+# gt = cv.normalize(gt, gt, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+# cv.imwrite("/Users/zhouying/Desktop/gt.png", gt[0:,0:,2])
