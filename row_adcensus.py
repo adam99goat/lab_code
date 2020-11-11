@@ -1,15 +1,18 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 10 21:22:20 2020
+Created on Wed Nov 11 12:25:03 2020
 
-@author: zhouying
+@author: HUST
 """
+
 import numpy as np
 import cv2 as cv
+import os
 import time as tt
 from numba import jit
 import tifffile as tfl
+
+
 
 
 
@@ -437,122 +440,119 @@ def process(ref,img):
     return img
 
 
-           
-
-
-                
-
-start=tt.time()
-print('start...')
-
-left_color=cv.imread(r'aa.png')
-right_color=cv.imread(r'bb.png')
-left_gray=cv.cvtColor(left_color,cv.COLOR_BGR2GRAY)
-right_gray=cv.cvtColor(right_color,cv.COLOR_BGR2GRAY)
-H=left_gray.shape[0];W=left_gray.shape[1];MaxDis=64
-left_cost_volume,right_cost_volume=Census(left_gray,right_gray,MaxDis)
-# cv.imwrite("CostLL1.png",normalize(np.uint8(np.argmin(left_cost_volume,axis=2)),MaxDis))
-# cv.imwrite("CostRR1.png",normalize(np.uint8(np.argmin(right_cost_volume,axis=2)),MaxDis))
-CadL,CadR=Computer_AD(left_color,right_color,MaxDis)
-RawCostL=CostVolume(left_cost_volume,CadL,10.0,5.0,H,W,MaxDis)
-RawCostR=CostVolume(right_cost_volume,CadR,10.0,5.0,H,W,MaxDis)
-testf=np.uint8(np.argmin(RawCostL,axis=2))
-del CadL,CadR,left_cost_volume,right_cost_volume
-# cv.imwrite("CostL1.png",normalize(np.uint8(np.argmin(RawCostL,axis=2)),MaxDis))
-# cv.imwrite("CostR1.png",normalize(np.uint8(np.argmin(RawCostR,axis=2)),MaxDis))
-print('getting four arm length....')
-astart=tt.time()
-resultLL=get_arm(left_color,30,30,27,27) #确定左图的ARM
-resultRR=get_arm(right_color,30,30,27,27) #确定右图的ARM
-end=tt.time()
-print('gotted...({:.2f}S)'.format(end-astart))
-print('Agging left and right cost...')
-test1=aggodd(resultLL,RawCostL)
-left_agged=aggodd(resultLL,test1)
-#test1=aggodd(resultLL,left_agged)
-#left_agged=aggeven(resultLL,test1)
-
-test=aggodd(resultRR,RawCostR)
-right_agged=aggodd(resultRR,test)
-#test=aggodd(resultRR,right_agged)
-#right_agged=aggeven(resultRR,test)
-
-# cv.imwrite("leftagg.png",normalize(np.uint8(np.argmin(left_agged,axis=2)),MaxDis))
-# cv.imwrite("rightagg.png",normalize(np.uint8(np.argmin(right_agged,axis=2)),MaxDis))
-"""
-aggregation_volume=np.zeros(shape=(H,W,MaxDis,4),dtype=np.float32)
-aggtwo,aggfour=agglr(left_agged,left_color,right_color,MaxDis,1.0,3.0,15)
-aggone,aggthree=aggtb(left_agged,left_color,right_color,MaxDis,1.0,3.0,15)
-aggregation_volume[:,:,:,0]=aggtwo
-aggregation_volume[:,:,:,1]=aggfour
-aggregation_volume[:,:,:,2]=aggone
-aggregation_volume[:,:,:,3]=aggthree
-#disparity_left_eight=select_disparity(aggregation_volume)
-#cv.imwrite("rrrrr.png",normalize(np.uint8(disparity_left_eight),64))
-left_agged=np.sum(aggregation_volume, axis=3)/4.0
 
 
 
-aggtwo,aggfour=agglr1(right_agged,left_color,right_color,MaxDis,1.0,3.0,15)
-aggone,aggthree=aggtb1(right_agged,left_color,right_color,MaxDis,1.0,3.0,15)
-aggregation_volume[:,:,:,0]=aggtwo
-aggregation_volume[:,:,:,1]=aggfour
-aggregation_volume[:,:,:,2]=aggone
-aggregation_volume[:,:,:,3]=aggthree
-#disparity_left_eight=select_disparity(aggregation_volume)
-#cv.imwrite("rrrrr.png",normalize(np.uint8(disparity_left_eight),64))
-right_agged=np.sum(aggregation_volume, axis=3)/4.0
-"""
-# cv.imwrite("leftagged.png",normalize(np.uint8(np.argmin(left_agged,axis=2)),MaxDis))
-# cv.imwrite("rightagged.png",normalize(np.uint8(np.argmin(right_agged,axis=2)),MaxDis))
 
-left_dis=np.argmin(left_agged,axis=2).astype(np.int32)
-testf=left_dis.copy()
-right_dis=np.argmin(right_agged,axis=2).astype(np.int32)
-final,nor,occ,mis=ClassifyOutlier(left_dis,right_dis,MaxDis)
-ggmap=final.copy()
-# cv.imwrite("lrcheck.png",final)
-aaa=tt.time()
-for i in range(10):
-    left_dis,final=Iterative_Region_Voting(left_dis,final,resultLL,20,0.4,MaxDis)
-bbb=tt.time()
-print('agssssged...({:.2f}S)'.format(bbb-aaa))
-# cv.imwrite("Iterative_Region_Voting.png",normalize(left_dis,MaxDis))
-# cv.imwrite("lrcheckAfter.png",final)
-posted=process(final,left_dis)
-# cv.imwrite("postedC.png",cv.applyColorMap(np.uint8(normalize(posted,MaxDis)), cv.COLORMAP_JET))
-# cv.imwrite("posted.png",posted)
-edge = cv.Canny(np.uint8(posted), 5, 15)
-aabb=edge_optimize(edge,posted,left_agged)
-# cv.imwrite("aabbC.png",cv.applyColorMap(np.uint8(normalize(aabb,MaxDis)), cv.COLORMAP_JET))
-ccdd=Sub_pixel_Enhancement(aabb,left_agged)
-ccdd=cv.medianBlur(ccdd,3)
 
-diff=np.zeros(shape=(H,W),dtype=np.uint8)
-diff[:,:]=255
 
-miserr=0;occerr=0;norerr=0
-# for h in range(H):
-#     for w in range(W):
-#         if np.abs(ref[h,w]-ccdd[h,w])>0.5 and ref[h,w]!=0:
-#             diff[h,w]=0
-# cv.imwrite("diff.png",diff)
-# cv.imshow("origin",left_color)
-# cv.imshow("diff",diff)
-aaend=tt.time()
-print('agged...({:.2f}S)'.format(aaend-start))
-cv.waitKey()
-#print('全部区域错误率:'+str((occerr+miserr+norerr)/(H*W)))
-#print('未遮挡区域:'+str(norerr/nor))
-CCDD=cv.normalize(ccdd ,ccdd, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-cv.imwrite("posted.png",CCDD)
-# cv.imwrite("postedC.png",cv.applyColorMap(ccdd, cv.COLORMAP_JET))
-#aaend=tt.time()
-#print('agged...({:.2f}S)'.format(aaend-end))
-#end=tt.time()
-#print('end...({:.2f}S)'.format(end-start))
-#cv.imshow("diff",diff)
-#cv.imshow("disparity",ccdd)
-#cv.imshow("groundtruth",reff)
-#cv.waitKey()
-#cv.destroyAllWindows()
+
+savepath = r'C:\Users\HUST\Desktop\ad_census\row1'
+trainpath = r'C:\Users\HUST\Desktop\row_and_resize3\row'
+def get_img_file(file_name):
+    imagelist = []
+    for parent, dirnames, filenames in os.walk(file_name):
+        for filename in filenames:
+            if filename.lower().endswith(('.png')):
+                imagelist.append(os.path.join(parent, filename))
+        return imagelist
+   
+file = get_img_file(trainpath)
+file.sort()
+
+for i in range(int(len(file)/2)):
+    path2 = file[2*i]
+    path1 = file[2*i+1]
+    
+    start=tt.time()
+    # print('start...')
+    left_color=cv.imread(path1)
+    right_color=cv.imread(path2)
+    
+    # left_color1=np.zeros_like(left_color)
+    # right_color1=np.zeros_like(right_color)
+    # for j in range(left_color.shape[1]):
+    #     left_color1[:,j,:]=left_color[:,left_color1.shape[1]-1-j,:]
+    #     right_color1[:,j,:]=left_color[:,right_color1.shape[1]-1-j,:]
+    
+    # left_color=left_color1
+    # right_color=right_color1
+    
+    left_color=cv.flip(left_color,1,dst=None)
+    right_color=cv.flip(right_color,1,dst=None)
+    
+    left_gray=cv.cvtColor(left_color,cv.COLOR_BGR2GRAY)
+    right_gray=cv.cvtColor(right_color,cv.COLOR_BGR2GRAY)
+    
+    
+    
+
+    
+    
+    
+    H=left_gray.shape[0];W=left_gray.shape[1];MaxDis=64
+    left_cost_volume,right_cost_volume=Census(left_gray,right_gray,MaxDis)
+    CadL,CadR=Computer_AD(left_color,right_color,MaxDis)
+    RawCostL=CostVolume(left_cost_volume,CadL,10.0,10.0,H,W,MaxDis)
+    RawCostR=CostVolume(right_cost_volume,CadR,10.0,10.0,H,W,MaxDis)
+    testf=np.uint8(np.argmin(RawCostL,axis=2))
+    del CadL,CadR,left_cost_volume,right_cost_volume
+    # print('getting four arm length....')
+    # astart=tt.time()
+    resultLL=get_arm(left_color,30,30,27,27) #确定左图的ARM
+    resultRR=get_arm(right_color,30,30,27,27) #确定右图的ARM
+    # end=tt.time()
+    # print('gotted...({:.2f}S)'.format(end-astart))
+    # print('Agging left and right cost...')
+    test1=aggodd(resultLL,RawCostL)
+    left_agged=aggodd(resultLL,test1)
+    test=aggodd(resultRR,RawCostR)
+    right_agged=aggodd(resultRR,test)
+    
+    left_dis=np.argmin(left_agged,axis=2).astype(np.int32)
+    testf=left_dis.copy()
+    right_dis=np.argmin(right_agged,axis=2).astype(np.int32)
+    final,nor,occ,mis=ClassifyOutlier(left_dis,right_dis,MaxDis)
+    ggmap=final.copy()
+    
+    aaa=tt.time()
+    for ii in range(10):
+        left_dis,final=Iterative_Region_Voting(left_dis,final,resultLL,20,0.4,MaxDis)
+    bbb=tt.time()
+    # print('agssssged...({:.2f}S)'.format(bbb-aaa))
+    
+    posted=process(final,left_dis)
+    
+    edge = cv.Canny(np.uint8(posted), 5, 15)
+    aabb=edge_optimize(edge,posted,left_agged)
+    
+    ccdd=Sub_pixel_Enhancement(aabb,left_agged)
+    ccdd=cv.medianBlur(ccdd,3)
+    
+
+    
+    miserr=0;occerr=0;norerr=0
+    
+    # aaend=tt.time()
+    # print('agged...({:.2f}S)'.format(aaend-start))
+    # cv.waitKey()
+    # ccddcopy=np.zeros_like(ccdd)
+    # for j in range(np.size(ccdd,1)):
+    #     ccddcopy[:,j]=ccdd[:,np.size(ccdd,1)-1-j]
+    # ccdd=ccddcopy
+    ccdd=cv.flip(ccdd,1,dst=None)
+    
+    ccddpng=ccdd
+    ccddpng[ccddpng>64]=0
+    ccddpng[ccddpng<0]=0
+    CCDD=cv.normalize(ccddpng ,ccddpng, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+    cv.imwrite(savepath+'/imgL_'+file[2*i][-11:-5]+'.png',CCDD)
+    
+    ccddtiff=ccdd
+    ccddtiff[ccddtiff>64]=np.nan
+    ccddtiff[ccddtiff<0]=np.nan
+    cv.imwrite(savepath+'/left_disparity_map'+file[2*i][-11:-5]+'.tiff', ccddtiff)
+    print('No.'+str(i)+','+file[2*i][-11:-5])
+    
+    # print(np.sum(ccdd<0))
+    # print(np.sum(ccdd>64))
